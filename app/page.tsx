@@ -22,6 +22,7 @@ import BottomNav from "@/components/bottom-nav";
 import VoucherPage from "@/components/pages/VoucherPage";
 import { CartProvider } from "./store/cart-context";
 import { useCartCount } from "../hooks/useCartCount";
+import HistoryPage from "@/components/pages/HistoryPage";
 
 type PageType =
   | "home"
@@ -40,7 +41,8 @@ type PageType =
   | "favorites"
   | "inbox"
   | "account"
-  | "voucher";
+  | "voucher"
+  | "history";
 
 interface PageState {
   current: PageType;
@@ -142,6 +144,8 @@ export default function App() {
         return <AccountPage onNavigate={navigateTo} />;
       case "voucher":
         return <VoucherPage onNavigate={navigateTo} />;
+      case "history":
+        return <HistoryPage onNavigate={navigateTo} />;
       default:
         return (
           <HomePage
