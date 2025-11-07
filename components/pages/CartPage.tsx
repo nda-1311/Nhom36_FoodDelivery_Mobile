@@ -12,7 +12,7 @@ interface CartPageProps {
 type CartRow = {
   id: string; // uuid
   cart_key: string;
-  product_id: string | number;
+  food_item_id: string | number;
   name: string;
   price: number;
   quantity: number;

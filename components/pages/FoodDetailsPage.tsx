@@ -191,40 +191,45 @@ FoodDetailsPageProps) {
   // ✅ Handler thêm vào giỏ (cập nhật badge)
   // ================== ADD TO CART ==================
   const handleAddToCart = async () => {
-    if (!data) return;
-
-    const food_item_id = Number(data?.id);
-    if (!Number.isFinite(food_item_id)) {
-      alert("Thiếu hoặc sai food_item_id");
-      return;
-    }
-
-    const cart_key = await getCartKey();
-    const options_key = `${selectedSize}|${[...toppings]
-      .sort()
-      .join("+")}|${selectedSpiciness}`;
-    const price = Number(basePrice + sizePrice + toppingPrice);
-
-    const row = {
-      cart_key,
-      food_item_id,
-      options_key,
-      name: displayName,
-      price,
-      quantity,
-      image: imageSrc,
-      restaurant: data?.restaurant?.name ?? null,
-      meta: {
-        size: selectedSize,
-        spiciness: selectedSpiciness,
-        toppings,
-        note,
-        raw: data,
-      },
-    };
-
     try {
-      const { data: exists } = await supabase
+      console.log("DEBUG => data:", data);
+      console.log("DEBUG => data.id:", data?.id, typeof data?.id);
+
+      // ✅ Đảm bảo data.id tồn tại và là chuỗi UUID
+      const food_item_id = data?.id ? String(data.id).trim() : null;
+      if (!food_item_id) {
+        alert("Thiếu hoặc sai food_item_id");
+        return;
+      }
+
+      const cart_key = await getCartKey();
+      const options_key = `${selectedSize}|${[...toppings]
+        .sort()
+        .join("+")}|${selectedSpiciness}`;
+      const price = Number(basePrice + sizePrice + toppingPrice);
+
+      const row = {
+        cart_key,
+        food_item_id, // ✅ UUID dạng string
+        options_key,
+        name: displayName,
+        price,
+        quantity,
+        image: imageSrc,
+        restaurant: data?.restaurant?.name ?? null,
+        meta: {
+          size: selectedSize,
+          spiciness: selectedSpiciness,
+          toppings,
+          note,
+          raw: data,
+        },
+      };
+
+      console.log("DEBUG => inserting row:", row);
+
+      // Kiểm tra nếu item đã có trong cart
+      const { data: exists, error: selectError } = await supabase
         .from("cart_items")
         .select("id, quantity")
         .eq("cart_key", cart_key)
@@ -232,38 +237,48 @@ FoodDetailsPageProps) {
         .eq("options_key", options_key)
         .maybeSingle();
 
+      if (selectError) {
+        console.error("Select failed:", selectError);
+        alert("Không thể kiểm tra cart_items (selectError)");
+        return;
+      }
+
       if (exists?.id) {
         const newQty = (exists.quantity || 0) + quantity;
         const { error: updateError } = await supabase
           .from("cart_items")
           .update({ quantity: newQty })
           .eq("id", exists.id);
-        if (updateError) throw updateError;
 
-        // 🔔 NEW: báo cho badge cập nhật ngay
-        window.dispatchEvent(
-          new CustomEvent("cart:changed", {
-            detail: { reason: "add", qtyDelta: quantity },
-          })
-        );
+        if (updateError) {
+          console.error("Update failed:", updateError);
+          alert("Lỗi khi cập nhật số lượng");
+          return;
+        }
       } else {
         const { error: insertError } = await supabase
           .from("cart_items")
           .insert([row]);
-        if (insertError) throw insertError;
 
-        // 🔔 NEW: báo cho badge cập nhật ngay
-        window.dispatchEvent(
-          new CustomEvent("cart:changed", {
-            detail: { reason: "add", qtyDelta: quantity },
-          })
-        );
+        if (insertError) {
+          console.error("Insert failed:", insertError);
+          alert("Lỗi khi thêm vào giỏ hàng: " + insertError.message);
+          return;
+        }
       }
 
+      window.dispatchEvent(
+        new CustomEvent("cart:changed", {
+          detail: { reason: "add", qtyDelta: quantity },
+        })
+      );
+
       onNavigate("cart");
-    } catch (error: any) {
-      console.error("Add to cart failed:", error);
-      alert(`❌ Add to cart failed: ${error?.message || "Unknown error"}`);
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      const errMsg =
+        error instanceof Error ? error.message : JSON.stringify(error);
+      alert("❌ Add to cart failed: " + (errMsg || "Unknown error"));
     }
   };
 
