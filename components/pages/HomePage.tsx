@@ -399,6 +399,12 @@ export default function HomePage({
                   onNavigate("food-details", {
                     ...f,
                     __resolvedImage: cardImageSrc,
+                    restaurants: [
+                      {
+                        id: restaurants[0]?.id || "default_restaurant_id",
+                        name: restaurants[0]?.name || "Default Restaurant",
+                      },
+                    ],
                   });
                 }}
               >
@@ -518,7 +524,17 @@ export default function HomePage({
               <div
                 key={deal.id}
                 className="relative rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-all group"
-                onClick={() => onNavigate("food-details", deal)}
+                onClick={() =>
+                  onNavigate("food-details", {
+                    ...deal,
+                    restaurants: [
+                      {
+                        id: restaurants[0]?.id || "default_restaurant_id",
+                        name: restaurants[0]?.name || "Default Restaurant",
+                      },
+                    ],
+                  })
+                }
               >
                 <img
                   src={deal.image_url || "/placeholder.jpg"}

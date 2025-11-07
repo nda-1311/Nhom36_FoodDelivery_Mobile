@@ -192,8 +192,13 @@ FoodDetailsPageProps) {
   // ================== ADD TO CART ==================
   const handleAddToCart = async () => {
     try {
-      console.log("DEBUG => data:", data);
+      console.log("🧩 DEBUG START - Add to cart -------------------");
+      console.log("DEBUG => full data object:", data);
       console.log("DEBUG => data.id:", data?.id, typeof data?.id);
+      console.log("DEBUG => data.restaurant_id:", data?.restaurant_id);
+      console.log("DEBUG => data.restaurant:", data?.restaurant);
+      console.log("DEBUG => data.restaurant?.id:", data?.restaurant?.id);
+      console.log("DEBUG => data.restaurant_name:", data?.restaurant_name);
 
       // ✅ Đảm bảo data.id tồn tại và là chuỗi UUID
       const food_item_id = data?.id ? String(data.id).trim() : null;
@@ -208,15 +213,34 @@ FoodDetailsPageProps) {
         .join("+")}|${selectedSpiciness}`;
       const price = Number(basePrice + sizePrice + toppingPrice);
 
+      // ✅ Bằng đoạn này:
+      let restaurantId = data?.restaurant_id || null;
+      let restaurantName = data?.restaurant_name || null;
+
+      // Nếu Supabase trả về array
+      if (Array.isArray(data?.restaurants) && data.restaurants.length > 0) {
+        restaurantId = data.restaurants[0].id;
+        restaurantName = data.restaurants[0].name;
+      }
+      // Nếu Supabase trả về object
+      else if (data?.restaurants && typeof data.restaurants === "object") {
+        restaurantId = data.restaurants.id || restaurantId;
+        restaurantName = data.restaurants.name || restaurantName;
+      }
+
+      console.log("✅ Final restaurantId:", restaurantId);
+      console.log("✅ Final restaurantName:", restaurantName);
+
       const row = {
         cart_key,
-        food_item_id, // ✅ UUID dạng string
+        food_item_id,
         options_key,
         name: displayName,
         price,
         quantity,
         image: imageSrc,
-        restaurant: data?.restaurant?.name ?? null,
+        restaurant_id: restaurantId,
+        restaurant: restaurantName,
         meta: {
           size: selectedSize,
           spiciness: selectedSpiciness,
@@ -226,7 +250,7 @@ FoodDetailsPageProps) {
         },
       };
 
-      console.log("DEBUG => inserting row:", row);
+      console.log("🧾 DEBUG => inserting row:", row);
 
       // Kiểm tra nếu item đã có trong cart
       const { data: exists, error: selectError } = await supabase
@@ -238,7 +262,7 @@ FoodDetailsPageProps) {
         .maybeSingle();
 
       if (selectError) {
-        console.error("Select failed:", selectError);
+        console.error("❌ Select failed:", selectError);
         alert("Không thể kiểm tra cart_items (selectError)");
         return;
       }
@@ -251,7 +275,7 @@ FoodDetailsPageProps) {
           .eq("id", exists.id);
 
         if (updateError) {
-          console.error("Update failed:", updateError);
+          console.error("❌ Update failed:", updateError);
           alert("Lỗi khi cập nhật số lượng");
           return;
         }
@@ -261,7 +285,7 @@ FoodDetailsPageProps) {
           .insert([row]);
 
         if (insertError) {
-          console.error("Insert failed:", insertError);
+          console.error("❌ Insert failed:", insertError);
           alert("Lỗi khi thêm vào giỏ hàng: " + insertError.message);
           return;
         }
@@ -273,9 +297,11 @@ FoodDetailsPageProps) {
         })
       );
 
+      console.log("✅ Item added successfully, navigating to cart.");
+      console.log("🧩 DEBUG END - Add to cart ---------------------");
       onNavigate("cart");
     } catch (error) {
-      console.error("Unexpected error:", error);
+      console.error("🚨 Unexpected error:", error);
       const errMsg =
         error instanceof Error ? error.message : JSON.stringify(error);
       alert("❌ Add to cart failed: " + (errMsg || "Unknown error"));

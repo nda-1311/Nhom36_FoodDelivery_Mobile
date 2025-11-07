@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 interface Order {
   id: string;
   order_number: string;
-  total_amount: number;
+  total: number;
   status: string;
   created_at: string;
 }
@@ -97,7 +97,7 @@ export default function HistoryPage({
             <div className="flex items-center gap-1 text-orange-600">
               <DollarSign size={16} />
               <span className="font-semibold">
-                {order.total_amount.toLocaleString()}₫
+                {order.total.toLocaleString()}₫
               </span>
             </div>
           </div>
