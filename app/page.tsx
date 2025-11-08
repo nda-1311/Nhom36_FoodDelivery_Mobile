@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase/client";
+
 import HomePage from "@/components/pages/HomePage";
 import SearchPage from "@/components/pages/SearchPage";
 import RestaurantPage from "@/components/pages/RestaurantPage";
@@ -23,8 +25,12 @@ import VoucherPage from "@/components/pages/VoucherPage";
 import { CartProvider } from "./store/cart-context";
 import { useCartCount } from "../hooks/useCartCount";
 import HistoryPage from "@/components/pages/HistoryPage";
+import LoginPage from "@/components/pages/LoginPage";
+import LogoutPage from "@/components/pages/LogoutPage";
 
 type PageType =
+  | "login"
+  | "logout"
   | "home"
   | "search"
   | "restaurant"
@@ -42,6 +48,7 @@ type PageType =
   | "inbox"
   | "account"
   | "voucher"
+  | "loading"
   | "history";
 
 interface PageState {
@@ -50,42 +57,101 @@ interface PageState {
 }
 
 export default function App() {
-  const [page, setPage] = useState<PageState>({ current: "home" });
+  const [page, setPage] = useState<PageState>({ current: "loading" });
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [dbInitialized, setDbInitialized] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const { cartCount } = useCartCount();
 
+  /**
+   * 🧹 Dọn session Supabase cũ (đảm bảo lần đầu tiên luôn về trang Login)
+   * 👉 Chạy 1 lần khi app load
+   */
+  // useEffect(() => {
+  //   const clearOldSession = async () => {
+  //     const { error } = await supabase.auth.signOut();
+  //     if (!error) console.log("✅ Đã xoá session Supabase cũ");
+  //   };
+  //   clearOldSession();
+  // }, []);
+
+  /**
+   * ✅ Kiểm tra user khi mở app
+   * Nếu có user → vào Home
+   * Nếu không → vào Login
+   */
   useEffect(() => {
-    const initialized = localStorage.getItem("db_initialized");
-    if (initialized) {
-      setDbInitialized(true);
-    }
+    const checkSession = async () => {
+      setPage({ current: "loading" });
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+
+      console.log("🔍 sessionData:", sessionData);
+
+      if (!session || !session.user) {
+        setUser(null);
+        setPage({ current: "login" });
+      } else {
+        setUser(session.user);
+        setPage({ current: "home" });
+      }
+
+      setAuthChecking(false);
+    };
+
+    checkSession();
+
+    // 🔁 Lắng nghe sự kiện đăng nhập / đăng xuất
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          setPage({ current: "home" });
+        } else {
+          setUser(null);
+          setPage({ current: "login" });
+        }
+      }
+    );
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
-  const navigateTo: (pageName: string, data?: any) => void = (
-    pageName,
-    data
-  ) => {
+  /**
+   * Chuyển trang
+   */
+  const navigateTo = (pageName: string, data?: any) => {
     setPage({ current: pageName as PageType, data });
   };
+
+  /**
+   * Thêm / xoá món yêu thích
+   */
   const toggleFavorite = (item: any) => {
     setFavorites((prev) => {
       const exists = prev.find((f) => f.id === item.id);
-      if (exists) {
-        return prev.filter((f) => f.id !== item.id);
-      } else {
-        return [...prev, item];
-      }
+      return exists ? prev.filter((f) => f.id !== item.id) : [...prev, item];
     });
   };
 
-  useEffect(() => {
-    localStorage.setItem("db_initialized", "true");
-    setDbInitialized(true);
-  }, []);
-
+  /**
+   * Render trang chính
+   */
   const renderPage = () => {
     switch (page.current) {
+      case "loading":
+        return (
+          <div className="flex items-center justify-center h-screen text-gray-500">
+            Đang kiểm tra đăng nhập...
+          </div>
+        );
+      case "login":
+        return <LoginPage onNavigate={navigateTo} />;
+      case "logout":
+        return <LogoutPage onNavigate={navigateTo} />;
       case "home":
         return (
           <HomePage
@@ -157,16 +223,37 @@ export default function App() {
     }
   };
 
+  /**
+   * 🕒 Nếu đang kiểm tra đăng nhập thì hiển thị màn hình loading
+   */
+  if (authChecking) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-500">
+        Đang kiểm tra đăng nhập...
+      </div>
+    );
+  }
+
+  /**
+   * 🔹 Ẩn BottomNav khi ở trang login / logout
+   */
+  const hideBottomNav =
+    page.current === "login" ||
+    page.current === "logout" ||
+    page.current === "loading";
+
   return (
     <CartProvider>
       <div className="min-h-screen bg-background">
         <div className="max-w-md mx-auto bg-white relative pb-20">
           {renderPage()}
-          <BottomNav
-            currentPage={page.current}
-            onNavigate={navigateTo}
-            cartCount={cartCount}
-          />
+          {!hideBottomNav && (
+            <BottomNav
+              currentPage={page.current}
+              onNavigate={navigateTo}
+              cartCount={cartCount}
+            />
+          )}
         </div>
       </div>
     </CartProvider>

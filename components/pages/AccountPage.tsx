@@ -10,6 +10,7 @@ import {
   Edit2,
 } from "lucide-react";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase/client"; // ✅ import Supabase client
 
 interface AccountPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -17,6 +18,7 @@ interface AccountPageProps {
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const userInfo = {
     name: "John Doe",
@@ -27,6 +29,27 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     totalOrders: 42,
     memberSince: "January 2023",
     avatar: "JD",
+  };
+
+  // ✅ Hàm đăng xuất Supabase
+  const handleLogout = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("Lỗi đăng xuất:", error.message);
+        alert("Đăng xuất thất bại: " + error.message);
+      } else {
+        console.log("✅ Đã đăng xuất Supabase thành công");
+        onNavigate("login"); // 🔹 Điều hướng về trang Login
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Có lỗi xảy ra khi đăng xuất!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -171,11 +194,15 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         </div>
       </div>
 
-      {/* Logout Button */}
+      {/* ✅ Logout Button hoạt động thật */}
       <div className="px-4 py-4">
-        <button className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all hover-lift">
+        <button
+          onClick={handleLogout}
+          disabled={loading}
+          className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all hover-lift disabled:opacity-70"
+        >
           <LogOut size={20} />
-          Logout
+          {loading ? "Đang đăng xuất..." : "Logout"}
         </button>
       </div>
 
